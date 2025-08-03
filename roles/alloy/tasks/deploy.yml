@@ -17,7 +17,7 @@
       ansible.builtin.set_fact:
         alloy_version: "{{ __github_latest_version.json.tag_name | regex_replace('^v?(\\d+\\.\\d+\\.\\d+)$', '\\1') }}"
 
-- name: Verify current deployed version
+- name: Verify currently deployed version on linux
   block:
     - name: Check if Alloy binary is present
       ansible.builtin.stat:
@@ -32,11 +32,18 @@
       when: __already_deployed.stat.exists | bool
   when: ansible_facts['os_family'] != 'Windows'
 
+- name: Verify currently deployed version on windows
   block:
     - name: Check if Alloy binary is present
       ansible.builtin.win_stat:
-        path: "C:\Program Files\GrafanaLabs\Alloy\alloy-windows-amd64.exe"
+        path: '"C:\Program Files\GrafanaLabs\Alloy\alloy-windows-amd64.exe"'
       register: __already_deployed
+    - name: Obtain current deployed Alloy version
+      ansible.builtin.win_command:
+        cmd: '"C:\Program Files\GrafanaLabs\Alloy\alloy-windows-amd64.exe --version"'
+      changed_when: false
+      register: __current_deployed_version
+      when: __already_deployed.stat.exists | bool
   when: ansible_facts['os_family'] == 'Windows'
 
 - name: Include RedHat/Rocky setup
@@ -55,7 +62,9 @@
   when: ansible_facts['os_family'] == 'Windows'
 
 - name: Alloy systemd override
-  when: alloy_systemd_override | length > 0
+  when: 
+    - alloy_systemd_override | length > 0
+    - ansible_facts['os_family'] != 'Windows'
   block:
     - name: Ensure that Alloy systemd override path exist
       ansible.builtin.file:
@@ -74,7 +83,6 @@
         group: "root"
         mode: "0644"
       notify: restart alloy
-  when: ansible_facts['os_family'] != 'Windows'
 
 - name: Template Alloy env file - {{ __alloy_env_file }}
   ansible.builtin.template:
@@ -96,34 +104,34 @@
   when:
     - alloy_config | length > 0
     - alloy_env_file_vars.CONFIG_FILE is not defined
+    - ansible_facts['os_family'] != 'Windows'
   notify: restart alloy
-  when: ansible_facts['os_family'] != 'Windows'
 
 - name: Template Alloy config - C:\Program Files\GrafanaLabs\Alloy\config.alloy
   ansible.builtin.win_template:
     src: "config.alloy.j2"
-    dest: "C:\Program Files\GrafanaLabs\Alloy\config.alloy"
+    dest: '"C:\Program Files\GrafanaLabs\Alloy\config.alloy"'
   when:
     - alloy_config | length > 0
     - alloy_env_file_vars.CONFIG_FILE is not defined
+    - ansible_facts['os_family'] == 'Windows'
   notify: restart alloy
-  when: ansible_facts['os_family'] == 'Windows'
-
+  
 - name: Ensure that /etc/alloy/alloy.config is absent when a custom configuration file/dir is specified in alloy_env_file_vars.CONFIG_FILE
   ansible.builtin.file:
     path: "/etc/alloy/config.alloy"
     state: absent
   when:
     - alloy_config | length < 1 or alloy_env_file_vars.CONFIG_FILE is defined
-  when: ansible_facts['os_family'] != 'Windows'
+    - ansible_facts['os_family'] != 'Windows'
 
 - name: Ensure that C:\Program Files\GrafanaLabs\Alloy\config.alloy is absent when a custom configuration file/dir is specified in alloy_env_file_vars.CONFIG_FILE
   ansible.builtin.win_file:
-    path: "C:\Program Files\GrafanaLabs\Alloy\config.alloy"
+    path: '"C:\Program Files\GrafanaLabs\Alloy\config.alloy"'
     state: absent
   when:
     - alloy_config | length < 1 or alloy_env_file_vars.CONFIG_FILE is defined
-  when: ansible_facts['os_family'] == 'Windows'  
+    - ansible_facts['os_family'] == 'Windows'  
 
 - name: Add the Alloy system user to additional group
   ansible.builtin.user:
@@ -136,7 +144,7 @@
   loop: "{{ alloy_user_groups }}"
   when:
     - alloy_user_groups | length > 0
-  when: ansible_facts['os_family'] != 'Windows'
+    - ansible_facts['os_family'] != 'Windows'
 
 - name: Get firewalld state
   ansible.builtin.systemd:
