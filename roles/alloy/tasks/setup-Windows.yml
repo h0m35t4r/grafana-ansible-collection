@@ -1,0 +1,16 @@
+---
+- name: Download the alloy package
+  win_get_url:
+    url: "{{ alloy_download_url_exe }}"
+    dest: C:\temp\alloy.exe.zip
+
+- name: Unzip the alloy package
+  community.windows.win_unzip:
+    src: C:\temp\alloy.exe.zip
+    dest: C:\temp
+    delete_archive: true
+    
+- name: Ensure alloy is installed through win_package
+  win_package:
+    path: C:\temp\alloy.exe
+    state: present

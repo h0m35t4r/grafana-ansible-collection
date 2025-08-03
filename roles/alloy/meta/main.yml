@@ -1,6 +1,6 @@
 ---
 galaxy_info:
-  role_name: alloy
+  role_name: alloy-windows
   author: Ishan Jain, voidquark
   description: Role to Install and Configure Grafana Alloy
   license: "GPL-3.0-or-later"
