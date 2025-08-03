@@ -18,6 +18,7 @@
         alloy_version: "{{ __github_latest_version.json.tag_name | regex_replace('^v?(\\d+\\.\\d+\\.\\d+)$', '\\1') }}"
 
 - name: Verify currently deployed version on linux
+  when: ansible_facts['os_family'] != 'Windows'
   block:
     - name: Check if Alloy binary is present
       ansible.builtin.stat:
@@ -30,9 +31,9 @@
       changed_when: false
       register: __current_deployed_version
       when: __already_deployed.stat.exists | bool
-  when: ansible_facts['os_family'] != 'Windows'
 
 - name: Verify currently deployed version on windows
+  when: ansible_facts['os_family'] == 'Windows'
   block:
     - name: Check if Alloy binary is present
       ansible.builtin.win_stat:
@@ -44,7 +45,6 @@
       changed_when: false
       register: __current_deployed_version
       when: __already_deployed.stat.exists | bool
-  when: ansible_facts['os_family'] == 'Windows'
 
 - name: Include RedHat/Rocky setup
   ansible.builtin.include_tasks:
